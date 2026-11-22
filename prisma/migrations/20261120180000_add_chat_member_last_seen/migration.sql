@@ -1,0 +1,1 @@
+ALTER TABLE "ChatMember" ADD COLUMN "lastSeenAt" TIMESTAMP(3);
