@@ -156,6 +156,9 @@ describe("chat API", () => {
     expect(docsConfig.status).toBe(200);
     expect(docsConfig.text).toContain("BearerAuth");
     expect(docsConfig.text).toContain("/api/chats/{chatId}/messages");
+    expect(docsConfig.text).toContain("/chat/create");
+    expect(docsConfig.text).toContain("/chat/{chatId}/message/send");
+    expect(docsConfig.text).toContain("/user/{userId}/chats");
   });
 
   it("requires a bearer token and rejects invalid Firebase tokens", async () => {
@@ -209,6 +212,101 @@ describe("chat API", () => {
         where: { pairKey: '["alice","bob"]' },
       })
     );
+  });
+
+  it("supports all six assignment-compatible route aliases", async () => {
+    const createChat = await request(app)
+      .post("/chat/create")
+      .set("Authorization", "Bearer alice")
+      .send({ userAId: "alice", userBId: "bob" });
+    expect(createChat.status).toBe(200);
+    expect(createChat.body.data.id).toBe("chat-1");
+
+    const sendMessage = await request(app)
+      .post("/chat/chat-1/message/send")
+      .set("Authorization", "Bearer alice")
+      .send({ senderId: "alice", text: "Assignment route message" });
+    expect(sendMessage.status).toBe(201);
+    expect(sendMessage.body.data).toMatchObject({
+      senderId: "alice",
+      content: "Assignment route message",
+      text: "Assignment route message",
+    });
+    const messageId = sendMessage.body.data.id as string;
+
+    const getMessages = await request(app)
+      .get("/chat/chat-1/messages?userId=alice&limit=5")
+      .set("Authorization", "Bearer alice");
+    expect(getMessages.status).toBe(200);
+    expect(getMessages.body.data.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: messageId,
+          senderId: "alice",
+          text: "Assignment route message",
+        }),
+      ])
+    );
+
+    const markRead = await request(app)
+      .post(`/chat/chat-1/message/${messageId}/read`)
+      .set("Authorization", "Bearer alice")
+      .send({ userId: "alice" });
+    expect(markRead.status).toBe(200);
+    expect(markRead.body.data).toMatchObject({ messageId, userId: "alice", read: true });
+
+    const lastSeen = await request(app)
+      .post("/chat/chat-1/lastseen")
+      .set("Authorization", "Bearer alice")
+      .send({ userId: "alice", messageId });
+    expect(lastSeen.status).toBe(200);
+    expect(lastSeen.body.data).toMatchObject({
+      chatId: "chat-1",
+      userId: "alice",
+      messageId,
+    });
+
+    const listChats = await request(app)
+      .get("/user/alice/chats")
+      .set("Authorization", "Bearer alice");
+    expect(listChats.status).toBe(200);
+    expect(listChats.body.data[0].memberIds).toEqual(["alice", "bob"]);
+  });
+
+  it("rejects assignment alias identity fields that differ from the verified token", async () => {
+    const createChat = await request(app)
+      .post("/chat/create")
+      .set("Authorization", "Bearer alice")
+      .send({ userAId: "bob", userBId: "alice" });
+    expect(createChat.status).toBe(403);
+
+    const sendMessage = await request(app)
+      .post("/chat/chat-1/message/send")
+      .set("Authorization", "Bearer alice")
+      .send({ senderId: "bob", text: "Spoofed sender" });
+    expect(sendMessage.status).toBe(403);
+
+    const getMessages = await request(app)
+      .get("/chat/chat-1/messages?userId=bob")
+      .set("Authorization", "Bearer alice");
+    expect(getMessages.status).toBe(403);
+
+    const markRead = await request(app)
+      .post("/chat/chat-1/message/message-1/read")
+      .set("Authorization", "Bearer alice")
+      .send({ userId: "bob" });
+    expect(markRead.status).toBe(403);
+
+    const lastSeen = await request(app)
+      .post("/chat/chat-1/lastseen")
+      .set("Authorization", "Bearer alice")
+      .send({ userId: "bob", messageId: "message-1" });
+    expect(lastSeen.status).toBe(403);
+
+    const listChats = await request(app)
+      .get("/user/bob/chats")
+      .set("Authorization", "Bearer alice");
+    expect(listChats.status).toBe(403);
   });
 
   it("rejects self chats and unknown users", async () => {

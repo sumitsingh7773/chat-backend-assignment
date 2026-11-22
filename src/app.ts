@@ -24,8 +24,12 @@ export function createApp(
 
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
   app.use("/api", firebaseAuth(tokenVerifier));
+  app.use("/chat", firebaseAuth(tokenVerifier));
+  app.use("/user", firebaseAuth(tokenVerifier));
   app.use("/api/chats", createChatRouter(database, firestoreProvider));
+  app.use("/chat", createChatRouter(database, firestoreProvider));
   app.use("/api/users", createUserRouter(database));
+  app.use("/user", createUserRouter(database));
   app.get("/health", (_req, res) => {
     res.status(200).json({
       success: true,

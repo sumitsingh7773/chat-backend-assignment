@@ -27,3 +27,28 @@ export const markReadBody = z.object({}).strict();
 export const lastSeenBody = z.object({
   messageId: identifier,
 }).strict();
+
+export const assignmentCreateChatBody = z.object({
+  userAId: identifier,
+  userBId: identifier,
+}).strict();
+
+export const assignmentSendMessageBody = z.object({
+  senderId: identifier,
+  text: z.string().trim().min(1).max(5000),
+}).strict();
+
+export const assignmentMessagesQuery = z.object({
+  userId: identifier,
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  cursor: identifier.optional(),
+}).strict();
+
+export const assignmentUserBody = z.object({
+  userId: identifier,
+}).strict();
+
+export const assignmentLastSeenBody = z.object({
+  userId: identifier,
+  messageId: identifier,
+}).strict();

@@ -93,6 +93,7 @@ export class ChatService {
       return {
         id: document.id,
         ...data,
+        content: data.content,
         createdAt:
           data.createdAt instanceof Timestamp
             ? data.createdAt.toDate().toISOString()
