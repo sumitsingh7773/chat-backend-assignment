@@ -38,6 +38,21 @@ All responses use `{ "success": true, "data": ... }` on success and a consistent
 | `PATCH` | `/api/chats/:chatId/last-seen` | Store the authenticated member's last-seen message and timestamp in Firestore. JSON: `{ "messageId": "..." }`. |
 | `GET` | `/api/users/:userId/chats` | List the authenticated user's PostgreSQL chats and their member IDs. |
 
+### Group chats
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `POST` | `/api/groups` | Create a group with `{ "name": "...", "description": "...", "memberIds": ["..."] }`. The authenticated creator is the first admin. |
+| `GET` | `/api/groups/:chatId` | Get group details and member roles. |
+| `PATCH` | `/api/groups/:chatId` | Admin-only group name/description update. |
+| `POST` | `/api/groups/:chatId/members` | Admin-only add with `{ "userIds": ["..."] }`. |
+| `DELETE` | `/api/groups/:chatId/members/:userId` | Admin removes a member; any member may leave. The last admin cannot leave or be removed. |
+| `PATCH` | `/api/groups/:chatId/members/:userId/role` | Admin-only role change with `{ "role": "ADMIN" }` or `{ "role": "MEMBER" }`. The last admin cannot be demoted. |
+| `POST` | `/api/groups/:chatId/messages` | Send a Firestore message as a group member. JSON: `{ "content": "..." }`. |
+| `GET` | `/api/groups/:chatId/messages?limit=50&cursor=...` | Fetch group messages newest-first with cursor pagination. |
+
+Group messages use the same Firestore `chats/{chatId}/messages/{messageId}` collection, `readBy` receipts, and per-user Firestore last-seen documents as 1-to-1 chats. Existing `/api/chats` and assignment-compatible routes remain available; their PostgreSQL membership authorization works for groups as well.
+
 ### Assignment-compatible routes
 
 These aliases use the same services, validation, Firebase authentication, and authorization as the `/api` endpoints. The existing routes remain available.
@@ -57,13 +72,15 @@ The interactive Swagger UI is available without a token; provide a Firebase ID t
 
 ## Tests and checks
 
-Run each verification command from the project root:
-
-The Jest/Supertest tests use mocked Prisma and Firestore dependencies; they do not require live database or Firebase credentials.
+Run verification commands from the project root. Jest/Supertest unit tests use mocked dependencies. The integration command uses live PostgreSQL, Firebase Authentication, and Firestore services, and removes its uniquely identified test data at completion.
 
 ```sh
 npm test
+npm run test:integration
 npm run typecheck
+npm run lint
 npx prisma validate
 npm run build
 ```
+
+The integration test requires `DATABASE_URL`, `FIREBASE_SERVICE_ACCOUNT_PATH`, `FIREBASE_WEB_API_KEY`, and `FIREBASE_TEST_PASSWORD`.

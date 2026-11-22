@@ -15,6 +15,212 @@ export const openApiDocument = {
         responses: { "200": { description: "API is available" } },
       },
     },
+    "/api/groups": {
+      post: {
+        tags: ["Chats"],
+        security: [{ BearerAuth: [] }],
+        summary: "Create a group; the caller becomes its first admin",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name"],
+                properties: {
+                  name: { type: "string", minLength: 1, maxLength: 100 },
+                  description: { type: "string", maxLength: 1000 },
+                  memberIds: {
+                    type: "array",
+                    maxItems: 99,
+                    items: { type: "string" },
+                  },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Group created with caller as ADMIN" },
+          "400": { description: "Invalid group details" },
+          "401": { description: "Missing or invalid Firebase ID token" },
+          "404": { description: "One or more users do not exist" },
+        },
+      },
+    },
+    "/api/groups/{chatId}": {
+      get: {
+        tags: ["Chats"],
+        security: [{ BearerAuth: [] }],
+        summary: "Get group details and member roles",
+        parameters: [{ $ref: "#/components/parameters/chatId" }],
+        responses: {
+          "200": { description: "Group details" },
+          "401": { description: "Missing or invalid Firebase ID token" },
+          "403": { description: "User is not a group member" },
+          "404": { description: "Group not found" },
+        },
+      },
+      patch: {
+        tags: ["Chats"],
+        security: [{ BearerAuth: [] }],
+        summary: "Update group name or description (admins only)",
+        parameters: [{ $ref: "#/components/parameters/chatId" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string", minLength: 1, maxLength: 100 },
+                  description: { type: "string", nullable: true, maxLength: 1000 },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Updated group details" },
+          "400": { description: "Invalid group details" },
+          "401": { description: "Missing or invalid Firebase ID token" },
+          "403": { description: "Only group admins can update group details" },
+        },
+      },
+    },
+    "/api/groups/{chatId}/members": {
+      post: {
+        tags: ["Chats"],
+        security: [{ BearerAuth: [] }],
+        summary: "Add members to a group (admins only)",
+        parameters: [{ $ref: "#/components/parameters/chatId" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["userIds"],
+                properties: {
+                  userIds: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 99,
+                    items: { type: "string" },
+                  },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Group after members were added" },
+          "400": { description: "Invalid member list" },
+          "401": { description: "Missing or invalid Firebase ID token" },
+          "403": { description: "Only group admins can add members" },
+          "404": { description: "One or more users do not exist" },
+          "409": { description: "A user is already a group member" },
+        },
+      },
+    },
+    "/api/groups/{chatId}/members/{userId}": {
+      delete: {
+        tags: ["Chats"],
+        security: [{ BearerAuth: [] }],
+        summary: "Remove a member (admins may remove others; a member may leave)",
+        parameters: [
+          { $ref: "#/components/parameters/chatId" },
+          { $ref: "#/components/parameters/userId" },
+        ],
+        responses: {
+          "200": { description: "Member removed" },
+          "401": { description: "Missing or invalid Firebase ID token" },
+          "403": { description: "Only admins may remove another member" },
+          "404": { description: "Group or member not found" },
+          "409": { description: "The last admin cannot leave or be removed" },
+        },
+      },
+    },
+    "/api/groups/{chatId}/members/{userId}/role": {
+      patch: {
+        tags: ["Chats"],
+        security: [{ BearerAuth: [] }],
+        summary: "Promote a member to admin or demote an admin (admins only)",
+        parameters: [
+          { $ref: "#/components/parameters/chatId" },
+          { $ref: "#/components/parameters/userId" },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["role"],
+                properties: { role: { type: "string", enum: ["ADMIN", "MEMBER"] } },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Updated group member roles" },
+          "400": { description: "Invalid role" },
+          "401": { description: "Missing or invalid Firebase ID token" },
+          "403": { description: "Only admins can change member roles" },
+          "404": { description: "Group or member not found" },
+          "409": { description: "The last admin cannot be demoted" },
+        },
+      },
+    },
+    "/api/groups/{chatId}/messages": {
+      post: {
+        tags: ["Chats"],
+        security: [{ BearerAuth: [] }],
+        summary: "Send a message to a group",
+        parameters: [{ $ref: "#/components/parameters/chatId" }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["content"],
+                properties: { content: { type: "string", maxLength: 5000 } },
+                additionalProperties: false,
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Group message created in Firestore" },
+          "401": { description: "Missing or invalid Firebase ID token" },
+          "403": { description: "User is not a group member" },
+        },
+      },
+      get: {
+        tags: ["Chats"],
+        security: [{ BearerAuth: [] }],
+        summary: "Get ordered, paginated group messages",
+        parameters: [
+          { $ref: "#/components/parameters/chatId" },
+          {
+            name: "limit",
+            in: "query",
+            schema: { type: "integer", minimum: 1, maximum: 100, default: 50 },
+          },
+          { name: "cursor", in: "query", schema: { type: "string" } },
+        ],
+        responses: {
+          "200": { description: "Group message page and continuation cursor" },
+          "401": { description: "Missing or invalid Firebase ID token" },
+          "403": { description: "User is not a group member" },
+        },
+      },
+    },
     "/chat/create": {
       post: {
         tags: ["Chats"],
@@ -335,6 +541,12 @@ export const openApiDocument = {
       },
       messageId: {
         name: "messageId",
+        in: "path",
+        required: true,
+        schema: { type: "string" },
+      },
+      userId: {
+        name: "userId",
         in: "path",
         required: true,
         schema: { type: "string" },

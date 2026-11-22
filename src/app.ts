@@ -7,6 +7,7 @@ import prisma from "./config/database";
 import { getFirestoreClient } from "./config/firebase";
 import { openApiDocument } from "./docs/openapi";
 import { createChatRouter } from "./routes/chat.routes";
+import { createGroupRouter } from "./routes/group.routes";
 import { createUserRouter } from "./routes/user.routes";
 import { errorHandler } from "./middleware/error-handler";
 import { firebaseAuth, TokenVerifier } from "./middleware/firebase-auth";
@@ -28,6 +29,7 @@ export function createApp(
   app.use("/user", firebaseAuth(tokenVerifier));
   app.use("/api/chats", createChatRouter(database, firestoreProvider));
   app.use("/chat", createChatRouter(database, firestoreProvider));
+  app.use("/api/groups", createGroupRouter(database, firestoreProvider));
   app.use("/api/users", createUserRouter(database));
   app.use("/user", createUserRouter(database));
   app.get("/health", (_req, res) => {

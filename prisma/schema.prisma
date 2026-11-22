@@ -12,6 +12,11 @@ enum ChatType {
   GROUP
 }
 
+enum ChatMemberRole {
+  ADMIN
+  MEMBER
+}
+
 model User {
   id        String       @id @default(uuid())
   name      String?
@@ -22,19 +27,22 @@ model User {
 }
 
 model Chat {
-  id        String       @id @default(uuid())
-  type      ChatType     @default(ONE_TO_ONE)
-  pairKey   String?      @unique
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  members   ChatMember[]
+  id          String       @id @default(uuid())
+  type        ChatType     @default(ONE_TO_ONE)
+  pairKey     String?      @unique
+  name        String?
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  members     ChatMember[]
 }
 
 model ChatMember {
-  id         String    @id @default(uuid())
+  id         String         @id @default(uuid())
   chatId     String
   userId     String
-  joinedAt   DateTime  @default(now())
+  role       ChatMemberRole @default(MEMBER)
+  joinedAt   DateTime       @default(now())
   lastSeenAt DateTime?
 
   chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
